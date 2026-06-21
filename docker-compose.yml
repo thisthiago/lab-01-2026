@@ -1,0 +1,358 @@
+name: lab-01-2026-data-engineering
+
+version: "3.8"
+
+# =============================================================
+# NETWORK — todos os serviços compartilham a mesma rede
+# =============================================================
+networks:
+  data_engineering_network:
+    driver: bridge
+    name: data_engineering_network
+
+# =============================================================
+# VOLUMES PERSISTENTES
+# =============================================================
+volumes:
+  postgres_data:
+  mongodb_data:
+  dagster_home: # Volumes internos do Airbyte
+
+  airbyte_workspace:
+  airbyte_data:
+  airbyte_db:
+
+    # =============================================================
+    # SERVIÇOS
+    # =============================================================
+services:
+
+  # -----------------------------------------------------------
+  # POSTGRESQL — Data Warehouse (schemas: stg, curated, dagster)
+  # -----------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    networks:
+      - data_engineering_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # -----------------------------------------------------------
+  # MONGODB — Source de dados brutos
+  # -----------------------------------------------------------
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    networks:
+      - data_engineering_network
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # -----------------------------------------------------------
+  # AIRBYTE — Plataforma de ingestão de dados (versão legada)
+  # Os serviços internos do Airbyte são declarados em
+  # ./airbyte/docker-compose.airbyte.yml e incluídos aqui
+  # via extends/include para manter o arquivo principal limpo
+  # -----------------------------------------------------------
+
+  # Banco de dados interno do Airbyte (separado do DW)
+  airbyte-db:
+    image: airbyte/db:0.50.33
+    container_name: airbyte-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=docker
+      - POSTGRES_PASSWORD=docker
+    volumes:
+      - airbyte_db:/var/lib/postgresql/data
+    networks:
+      - data_engineering_network
+
+  airbyte-bootloader:
+    image: airbyte/bootloader:0.50.33
+    container_name: airbyte-bootloader
+    restart: on-failure
+    environment:
+      - AIRBYTE_VERSION=0.50.33
+      - CONFIG_DATABASE_USER=docker
+      - CONFIG_DATABASE_PASSWORD=docker
+      - CONFIG_DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - DATABASE_USER=docker
+      - DATABASE_PASSWORD=docker
+      - DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - LOG_LEVEL=INFO
+      - RUN_DATABASE_MIGRATION_ON_STARTUP=true
+    depends_on:
+      airbyte-db:
+        condition: service_started
+    networks:
+      - data_engineering_network
+
+  airbyte-server:
+    image: airbyte/server:0.50.33
+    container_name: airbyte-server
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_ROLE=dev
+      - AIRBYTE_VERSION=0.50.33
+      - AUTO_DETECT_SCHEMA=true
+      - CONFIG_DATABASE_USER=docker
+      - CONFIG_DATABASE_PASSWORD=docker
+      - CONFIG_DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - CONFIG_ROOT=/data
+      - CONNECTOR_REGISTRY_BASE_URL=
+      - DATABASE_USER=docker
+      - DATABASE_PASSWORD=docker
+      - DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - FEATURE_FLAG_CLIENT=config
+      - JOB_MAIN_CONTAINER_CPU_LIMIT=
+      - JOB_MAIN_CONTAINER_CPU_REQUEST=
+      - JOB_MAIN_CONTAINER_MEMORY_LIMIT=
+      - JOB_MAIN_CONTAINER_MEMORY_REQUEST=
+      - LOG_LEVEL=INFO
+      - MAX_SYNC_TIMEOUT_DAYS=3
+      - NEW_SCHEDULER=true
+      - SECRET_PERSISTENCE=NONE
+      - TEMPORAL_HOST=airbyte-temporal:7233
+      - TRACKING_STRATEGY=logging
+      - WEBAPP_URL=http://localhost:${AIRBYTE_WEBAPP_PORT}
+      - WORKER_ENVIRONMENT=docker
+      - WORKSPACE_DOCKER_MOUNT=airbyte_workspace
+      - WORKSPACE_ROOT=/tmp/workspace
+      - BASIC_AUTH_USERNAME=${BASIC_AUTH_USERNAME}
+      - BASIC_AUTH_PASSWORD=${BASIC_AUTH_PASSWORD}
+    ports:
+      - "${AIRBYTE_PORT}:8001"
+    volumes:
+      - airbyte_data:/data
+      - airbyte_workspace:/tmp/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      airbyte-bootloader:
+        condition: service_completed_successfully
+    networks:
+      - data_engineering_network
+
+  airbyte-webapp:
+    image: airbyte/webapp:0.50.33
+    container_name: airbyte-webapp
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_SERVER_HOST=airbyte-server
+      - AIRBYTE_SERVER_PORT=8001
+      - AIRBYTE_SERVER_PROTO=http
+      - AIRBYTE_VERSION=0.50.33
+      - API_URL=/api/v1/
+      - CONNECTOR_BUILDER_API_URL=/connector-builder-api
+      - KEYCLOAK_INTERNAL_HOST=localhost
+      - TRACKING_STRATEGY=logging
+      - INTERNAL_API_HOST=airbyte-server:8001
+      - CONNECTOR_BUILDER_API_HOST=airbyte-connector-builder-server:80
+    ports:
+      - "${AIRBYTE_WEBAPP_PORT}:80"
+    depends_on:
+      - airbyte-server
+    networks:
+      - data_engineering_network
+
+  airbyte-temporal:
+    image: airbyte/temporal:0.50.33
+    container_name: airbyte-temporal
+    restart: unless-stopped
+    environment:
+      - DB=postgresql
+      - DB_PORT=5432
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development.yaml
+      - LOG_LEVEL=INFO
+      - POSTGRES_PWD=docker
+      - POSTGRES_SEEDS=airbyte-db
+      - POSTGRES_USER=docker
+    volumes:
+      - ./airbyte/temporal:/etc/temporal/config/dynamicconfig
+    depends_on:
+      - airbyte-db
+    networks:
+      - data_engineering_network
+
+  airbyte-worker:
+    image: airbyte/worker:0.50.33
+    container_name: airbyte-worker
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_VERSION=0.50.33
+      - AIRBYTE_ROLE=dev
+      - AUTO_DETECT_SCHEMA=true
+      - CONFIG_DATABASE_USER=docker
+      - CONFIG_DATABASE_PASSWORD=docker
+      - CONFIG_DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - CONFIG_ROOT=/data
+      - CONNECTOR_REGISTRY_BASE_URL=
+      - DATABASE_USER=docker
+      - DATABASE_PASSWORD=docker
+      - DATABASE_URL=jdbc:postgresql://airbyte-db:5432/airbyte
+      - DOCKER_NETWORK=data_engineering_network
+      - FEATURE_FLAG_CLIENT=config
+      - JOB_MAIN_CONTAINER_CPU_LIMIT=
+      - JOB_MAIN_CONTAINER_CPU_REQUEST=
+      - JOB_MAIN_CONTAINER_MEMORY_LIMIT=
+      - JOB_MAIN_CONTAINER_MEMORY_REQUEST=
+      - LOG_LEVEL=INFO
+      - INTERNAL_API_HOST=airbyte-server:8001
+      - LOGGER_LEVELS_IO_MICRONAUT_CONTEXT_CONDITION=TRACE
+      - SECRET_PERSISTENCE=NONE
+      - MAX_SYNC_JOB_ATTEMPTS=3
+      - MAX_SYNC_TIMEOUT_DAYS=3
+      - NEW_SCHEDULER=true
+      - SYNC_JOB_MAX_ATTEMPTS=3
+      - SYNC_JOB_MAX_TIMEOUT_DAYS=3
+      - TEMPORAL_HOST=airbyte-temporal:7233
+      - TRACKING_STRATEGY=logging
+      - WORKER_ENVIRONMENT=docker
+      - MICRONAUT_ENVIRONMENTS=control-plane
+      - WORKSPACE_DOCKER_MOUNT=airbyte_workspace
+      - WORKSPACE_ROOT=/tmp/workspace
+      - LOCAL_ROOT=/tmp/airbyte_local
+    volumes:
+      - airbyte_data:/data
+      - airbyte_workspace:/tmp/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - airbyte-server
+    networks:
+      - data_engineering_network
+
+  airbyte-connector-builder-server:
+    image: airbyte/connector-builder-server:0.50.33
+    container_name: airbyte-connector-builder-server
+    restart: unless-stopped
+    environment:
+      - AIRBYTE_VERSION=0.50.33
+      - CDK_VERSION=0.51.0
+      - LOG_LEVEL=INFO
+      - PYTHON_VERSION=3.10.14
+    ports:
+      - "8003:80"
+    depends_on:
+      - airbyte-server
+    networks:
+      - data_engineering_network
+
+  # -----------------------------------------------------------
+  # DAGSTER — Orquestrador (Webserver + Daemon + Code Location)
+  # -----------------------------------------------------------
+  dagster-code:
+    build:
+      context: ./dagster
+      dockerfile: Dockerfile
+    container_name: dagster-code
+    restart: unless-stopped
+    image: dagster-code-location:latest
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - MONGO_HOST=${MONGO_HOST}
+      - MONGO_PORT=${MONGO_PORT}
+      - MONGO_DB=${MONGO_DB}
+      - MONGO_USER=${MONGO_USER}
+      - MONGO_PASSWORD=${MONGO_PASSWORD}
+      - AIRBYTE_HOST=${AIRBYTE_HOST}
+      - AIRBYTE_PORT=${AIRBYTE_PORT}
+      - BASIC_AUTH_USERNAME=${BASIC_AUTH_USERNAME}
+      - BASIC_AUTH_PASSWORD=${BASIC_AUTH_PASSWORD}
+    volumes:
+      - dagster_home:${DAGSTER_HOME}
+      - ./dagster:/opt/dagster/app
+      - ./dbt:/opt/dagster/dbt
+    expose:
+      - "4000"
+    command: dagster api grpc -h 0.0.0.0 -p 4000 -f /opt/dagster/app/pipelines/definitions.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - data_engineering_network
+
+  dagster-webserver:
+    build:
+      context: ./dagster
+      dockerfile: Dockerfile
+    container_name: dagster-webserver
+    restart: unless-stopped
+    image: dagster-code-location:latest
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - dagster_home:${DAGSTER_HOME}
+      - ./dagster:/opt/dagster/app
+      - ./dbt:/opt/dagster/dbt
+    ports:
+      - "3000:3000"
+    command: dagster-webserver -h 0.0.0.0 -p 3000 -w /opt/dagster/app/workspace.yaml
+    depends_on:
+      - dagster-code
+    networks:
+      - data_engineering_network
+
+  dagster-daemon:
+    build:
+      context: ./dagster
+      dockerfile: Dockerfile
+    container_name: dagster-daemon
+    restart: unless-stopped
+    image: dagster-code-location:latest
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - dagster_home:${DAGSTER_HOME}
+      - ./dagster:/opt/dagster/app
+      - ./dbt:/opt/dagster/dbt
+    command: dagster-daemon run -w /opt/dagster/app/workspace.yaml
+    depends_on:
+      - dagster-code
+    networks:
+      - data_engineering_network

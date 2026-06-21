@@ -1,0 +1,25 @@
+# =============================================================
+# Dagster — Python Dependencies
+# =============================================================
+
+# Core Dagster
+dagster==1.7.14
+dagster-webserver==1.7.14
+
+# Dagster integrations
+dagster-postgres==0.23.14       # Storage backend no PostgreSQL
+dagster-dbt==0.23.14            # Integração nativa com dbt
+dagster-airbyte==0.23.14        # Integração nativa com Airbyte
+
+# dbt — versões confirmadas no PyPI (1.8.2 é a última da série 1.8.x)
+dbt-core==1.8.2
+dbt-postgres==1.8.2
+
+# Conectores de banco de dados
+psycopg2-binary==2.9.9
+pymongo==4.7.3
+sqlalchemy==2.0.31
+
+# Utilitários
+python-dotenv==1.0.1
+pandas==2.2.2

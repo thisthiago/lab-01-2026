@@ -1,0 +1,28 @@
+lab_01_dbt:
+  target: prod
+  outputs:
+
+    # Ambiente de produção (usado dentro do Docker)
+    prod:
+      type: postgres
+      host: "{{ env_var('POSTGRES_HOST', 'postgres') }}"
+      port: "{{ env_var('POSTGRES_PORT', '5432') | int }}"
+      user: "{{ env_var('POSTGRES_USER', 'dw_user') }}"
+      password: "{{ env_var('POSTGRES_PASSWORD', 'dw_password123') }}"
+      dbname: "{{ env_var('POSTGRES_DB', 'datawarehouse') }}"
+      schema: public
+      threads: 4
+      connect_timeout: 30
+      keepalives_idle: 0
+      search_path: "stg,curated,public"
+
+    # Ambiente de desenvolvimento local (fora do Docker)
+    dev:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: dw_user
+      password: dw_password123
+      dbname: datawarehouse
+      schema: public
+      threads: 2

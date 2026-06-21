@@ -1,0 +1,40 @@
+name: lab_01_dbt
+version: "1.0"
+config-version: 2
+
+# Profile usado para conectar ao PostgreSQL
+profile: lab_01_dbt
+
+# Diretórios do projeto
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+# Configuração global dos modelos
+models:
+  lab_01_dbt:
+
+    # Camada Staging — replica dados brutos do Airbyte com limpeza mínima
+    staging:
+      +schema: stg
+      +materialized: view          # Views são mais leves para staging
+      +tags: ["staging", "airbyte"]
+
+    # Camada Curated — dados transformados e prontos para consumo
+    curated:
+      +schema: curated
+      +materialized: table         # Tables para consulta eficiente
+      +tags: ["curated", "dbt"]
+
+# Configuração de seeds (arquivos CSV de referência)
+seeds:
+  lab_01_dbt:
+    +schema: seeds
+
+# Configuração de snapshots (SCD)
+snapshots:
+  lab_01_dbt:
+    +target_schema: snapshots

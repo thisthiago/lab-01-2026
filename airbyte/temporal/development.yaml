@@ -1,0 +1,8 @@
+# Temporal dynamic config — necessário para o Airbyte Temporal
+limit.maxTokenRPS:
+  - value: 10000
+    constraints: {}
+
+system.forceSearchAttributesCacheRefreshOnRead:
+  - value: true
+    constraints: {}

@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: curated_orders
+    description: "Pedidos enriquecidos com dados de cliente e métricas de negócio"
+    columns:
+      - name: order_id
+        description: "ID único do pedido"
+        tests:
+          - not_null
+          - unique
+
+      - name: ticket_categoria
+        description: "Categoria do ticket (baixo/medio/alto/premium)"
+        tests:
+          - accepted_values:
+              values: ['baixo', 'medio', 'alto', 'premium']
+
+      - name: is_completed
+        description: "Flag indicando se o pedido foi concluído"
+        tests:
+          - not_null
+
+  - name: curated_customers_summary
+    description: "Resumo de clientes com métricas de LTV, pedidos e segmentação RFM"
+    columns:
+      - name: customer_id
+        description: "ID único do cliente"
+        tests:
+          - not_null
+          - unique
+
+      - name: rfm_segment
+        description: "Segmento RFM simplificado"
+        tests:
+          - accepted_values:
+              values: ['champion', 'loyal', 'potential', 'new']
+
+      - name: lifetime_value
+        description: "Valor total gasto pelo cliente em pedidos concluídos"
+        tests:
+          - not_null

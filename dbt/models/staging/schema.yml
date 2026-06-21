@@ -1,0 +1,66 @@
+version: 2
+
+sources:
+  - name: airbyte_raw
+    description: "Dados brutos carregados pelo Airbyte do MongoDB"
+    schema: stg
+    tables:
+      - name: orders
+        description: "Pedidos extraídos da coleção orders do MongoDB"
+        columns:
+          - name: _airbyte_raw_id
+            description: "ID único gerado pelo Airbyte"
+          - name: _airbyte_data
+            description: "Dados brutos em formato JSONB"
+          - name: _airbyte_extracted_at
+            description: "Timestamp de extração pelo Airbyte"
+
+      - name: customers
+        description: "Clientes extraídos da coleção customers do MongoDB"
+        columns:
+          - name: _airbyte_raw_id
+            description: "ID único gerado pelo Airbyte"
+          - name: _airbyte_data
+            description: "Dados brutos em formato JSONB"
+          - name: _airbyte_extracted_at
+            description: "Timestamp de extração pelo Airbyte"
+
+models:
+  - name: stg_orders
+    description: "Staging de pedidos — dados limpos e padronizados do MongoDB"
+    columns:
+      - name: order_id
+        description: "ID único do pedido"
+        tests:
+          - not_null
+          - unique
+
+      - name: customer_id
+        description: "ID do cliente"
+        tests:
+          - not_null
+
+      - name: order_status
+        description: "Status do pedido"
+        tests:
+          - accepted_values:
+              values: ['pending', 'processing', 'completed', 'cancelled', 'refunded']
+
+      - name: total_amount
+        description: "Valor total do pedido"
+        tests:
+          - not_null
+
+  - name: stg_customers
+    description: "Staging de clientes — dados limpos e padronizados do MongoDB"
+    columns:
+      - name: customer_id
+        description: "ID único do cliente"
+        tests:
+          - not_null
+          - unique
+
+      - name: customer_email
+        description: "Email do cliente"
+        tests:
+          - not_null

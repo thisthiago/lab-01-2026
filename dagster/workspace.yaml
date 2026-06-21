@@ -1,0 +1,9 @@
+# =============================================================
+# Dagster Workspace — Define onde estão as code locations
+# =============================================================
+
+load_from:
+  - grpc_server:
+      host: dagster-code
+      port: 4000
+      location_name: "lab_01_pipeline"
