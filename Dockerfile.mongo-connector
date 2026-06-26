@@ -1,3 +1,5 @@
 FROM airbyte/source-mongodb-v2:1.0.3
 COPY certs/mongodb.crt /tmp/mongodb.crt
+
+RUN keytool -delete -alias mongodb -keystore /usr/lib/jvm/java-17-amazon-corretto.x86_64/lib/security/cacerts -storepass changeit -noprompt 2>/dev/null || true
 RUN keytool -importcert -trustcacerts -file /tmp/mongodb.crt -keystore /usr/lib/jvm/java-17-amazon-corretto.x86_64/lib/security/cacerts -storepass changeit -noprompt -alias mongodb
