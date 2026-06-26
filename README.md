@@ -195,42 +195,71 @@ docker compose down -v
 ```
 
 ---
-
 ## 📁 Estrutura do Projeto
 
 ```
 lab-01-2026/
-├── docker-compose.yml          # Orquestra todos os serviços
-├── .env                        # Variáveis de ambiente
-├── Makefile                    # Comandos utilitários
+├── .env                         # Variáveis de ambiente (não versionado)
+├── Makefile                     # Comandos utilitários
+├── docker-compose.yml           # Orquestração dos serviços
+├── setup.ps1                    # Script de configuração inicial (PowerShell)
+├── Dockerfile.mongo-connector   # Patch do conector Airbyte para MongoDB
+├── README.md
+│
 ├── airbyte/
 │   └── temporal/
-│       └── development.yaml    # Config do Temporal (Airbyte)
+│       └── development.yaml     # Configuração do Temporal (Airbyte)
+│
+├── app/                         # Gerador de dados aleatórios
+│   ├── gerar_dados.py           # Script principal
+│   └── requirements.txt         # Dependências (pymongo, faker)
+│
+├── certs/                       # Certificados TLS (gerados automaticamente)
+│   ├── mongodb.key
+│   ├── mongodb.crt
+│   ├── mongodb.pem
+│   └── mongo-keyfile
+│
 ├── dagster/
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── dagster.yaml
 │   ├── workspace.yaml
 │   └── pipelines/
-│       ├── definitions.py      # Ponto de entrada Dagster
+│       ├── definitions.py       # Ponto de entrada do Dagster
 │       └── assets/
-│           ├── extract.py      # Asset Airbyte (MongoDB → stg)
-│           └── transform.py    # Assets dbt (stg → curated)
+│           ├── extract.py       # Asset de extração (Airbyte)
+│           └── transform.py     # Assets de transformação (dbt)
+│
 ├── dbt/
 │   ├── dbt_project.yml
 │   ├── profiles.yml
 │   ├── packages.yml
-│   └── models/
-│       ├── staging/            # Views de staging
-│       │   ├── stg_orders.sql
-│       │   ├── stg_customers.sql
-│       │   └── schema.yml
-│       └── curated/            # Tables curadas
-│           ├── curated_orders.sql
-│           ├── curated_customers_summary.sql
-│           └── schema.yml
+│   ├── models/
+│   │   ├── staging/
+│   │   │   ├── stg_orders.sql
+│   │   │   ├── stg_customers.sql
+│   │   │   └── schema.yml
+│   │   └── curated/
+│   │       ├── curated_orders.sql
+│   │       ├── curated_customers_summary.sql
+│   │       └── schema.yml
+│   │
+│   ├── dbt_packages/            # Dependências instaladas (ignorar)
+│   ├── logs/                    # Logs de execução (ignorar)
+│   └── target/                  # Artefatos compilados (ignorar)
+│
 ├── mongo-init/
-│   └── init.js                 # Seed de dados no MongoDB
+│   └── init.js                  # Seed inicial do MongoDB
+│
 └── postgres-init/
-    └── init.sql                # Criação dos schemas
+    └── init.sql                 # Criação dos schemas no PostgreSQL
 ```
+
+> **Notas:**
+> - A pasta `certs/` é criada automaticamente na primeira execução do `setup.ps1` (certificados autoassinados).
+> - Os diretórios `dbt/dbt_packages`, `dbt/logs` e `dbt/target` são gerados pelo dbt e não precisam estar versionados no git.
+> - O arquivo `.env` contém credenciais e configurações.
+```
+
+Essa estrutura inclui os novos arquivos (`setup.ps1`, `Dockerfile.mongo-connector`, `app/`) e mantém a organização original, com destaque para as pastas de artefatos gerados.
