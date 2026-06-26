@@ -65,13 +65,22 @@ services:
       MONGO_INITDB_DATABASE: ${MONGO_DB}
     ports:
       - "27018:27017"
+    entrypoint: >
+      bash -c "
+      cp /certs/mongo-keyfile /tmp/mongo-keyfile &&
+      chmod 400 /tmp/mongo-keyfile &&
+      chown 999:999 /tmp/mongo-keyfile &&
+      exec docker-entrypoint.sh \"$$@\"
+      " --
+    command: ["mongod", "--replSet", "rs0", "--tlsMode", "requireTLS", "--tlsCertificateKeyFile", "/certs/mongodb.pem", "--tlsCAFile", "/certs/mongodb.pem", "--tlsAllowConnectionsWithoutCertificates", "--keyFile", "/tmp/mongo-keyfile"]
     volumes:
       - mongodb_data:/data/db
       - ./mongo-init:/docker-entrypoint-initdb.d
+      - ./certs:/certs
     networks:
       - data_engineering_network
     healthcheck:
-      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
+      test: [ "CMD", "mongosh", "--tls", "--tlsAllowInvalidCertificates", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -140,16 +149,19 @@ services:
       - JOB_MAIN_CONTAINER_MEMORY_REQUEST=
       - LOG_LEVEL=INFO
       - MAX_SYNC_TIMEOUT_DAYS=3
+      - MICRONAUT_ENVIRONMENTS=control-plane
       - NEW_SCHEDULER=true
       - SECRET_PERSISTENCE=NONE
       - TEMPORAL_HOST=airbyte-temporal:7233
       - TRACKING_STRATEGY=logging
       - WEBAPP_URL=http://localhost:${AIRBYTE_WEBAPP_PORT}
       - WORKER_ENVIRONMENT=docker
-      - WORKSPACE_DOCKER_MOUNT=airbyte_workspace
+      - WORKSPACE_DOCKER_MOUNT=lab-01-2026-data-engineering_airbyte_workspace
       - WORKSPACE_ROOT=/tmp/workspace
       - BASIC_AUTH_USERNAME=${BASIC_AUTH_USERNAME}
       - BASIC_AUTH_PASSWORD=${BASIC_AUTH_PASSWORD}
+      - CONFIGS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.35.15.001
+      - JOBS_DATABASE_MINIMUM_FLYWAY_MIGRATION_VERSION=0.29.15.001
     ports:
       - "${AIRBYTE_PORT}:8001"
     volumes:
@@ -238,7 +250,7 @@ services:
       - TRACKING_STRATEGY=logging
       - WORKER_ENVIRONMENT=docker
       - MICRONAUT_ENVIRONMENTS=control-plane
-      - WORKSPACE_DOCKER_MOUNT=airbyte_workspace
+      - WORKSPACE_DOCKER_MOUNT=lab-01-2026-data-engineering_airbyte_workspace
       - WORKSPACE_ROOT=/tmp/workspace
       - LOCAL_ROOT=/tmp/airbyte_local
     volumes:
