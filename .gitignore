@@ -1,0 +1,12 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# DBT artifacts
+dbt/logs/
+dbt/target/
+dbt/dbt_packages/
+
+# Certificados (opcional, se não quiser versionar)
+# certs/*.key
+# certs/mongo-keyfile
