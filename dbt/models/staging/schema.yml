@@ -8,21 +8,25 @@ sources:
       - name: orders
         description: "Pedidos extraídos da coleção orders do MongoDB"
         columns:
-          - name: _airbyte_raw_id
-            description: "ID único gerado pelo Airbyte"
-          - name: _airbyte_data
-            description: "Dados brutos em formato JSONB"
-          - name: _airbyte_extracted_at
+          - name: _airbyte_unique_key
+            description: "Chave única gerada pelo Airbyte"
+          - name: order_id
+            description: "ID do pedido (tipado pelo Airbyte V2)"
+          - name: customer_id
+            description: "ID do cliente (tipado pelo Airbyte V2)"
+          - name: _airbyte_emitted_at
             description: "Timestamp de extração pelo Airbyte"
 
       - name: customers
         description: "Clientes extraídos da coleção customers do MongoDB"
         columns:
-          - name: _airbyte_raw_id
-            description: "ID único gerado pelo Airbyte"
-          - name: _airbyte_data
-            description: "Dados brutos em formato JSONB"
-          - name: _airbyte_extracted_at
+          - name: _airbyte_unique_key
+            description: "Chave única gerada pelo Airbyte"
+          - name: customer_id
+            description: "ID do cliente (tipado pelo Airbyte V2)"
+          - name: email
+            description: "Email do cliente (tipado pelo Airbyte V2)"
+          - name: _airbyte_emitted_at
             description: "Timestamp de extração pelo Airbyte"
 
 models:

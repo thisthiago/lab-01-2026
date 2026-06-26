@@ -25,33 +25,33 @@ renamed as (
 
     select
         -- Chaves
-        _airbyte_data->>'order_id'      as order_id,
-        _airbyte_data->>'customer_id'   as customer_id,
+        order_id,
+        customer_id,
 
         -- Dados do cliente
-        _airbyte_data->>'customer_name'  as customer_name,
-        _airbyte_data->>'customer_email' as customer_email,
+        customer_name,
+        customer_email,
 
         -- Status e valores
-        _airbyte_data->>'status'         as order_status,
-        (_airbyte_data->>'total_amount')::numeric(12, 2) as total_amount,
-        _airbyte_data->>'currency'        as currency,
+        status           as order_status,
+        total_amount::numeric(12, 2) as total_amount,
+        currency,
 
         -- Endereço de entrega (JSONB aninhado)
-        _airbyte_data->'shipping_address'->>'city'  as shipping_city,
-        _airbyte_data->'shipping_address'->>'state' as shipping_state,
-        _airbyte_data->'shipping_address'->>'zip'   as shipping_zip,
+        shipping_address->>'city'  as shipping_city,
+        shipping_address->>'state' as shipping_state,
+        shipping_address->>'zip'   as shipping_zip,
 
         -- Itens do pedido (mantido como JSONB para curated processar)
-        _airbyte_data->'items' as items_raw,
+        items as items_raw,
 
         -- Timestamps
-        (_airbyte_data->>'created_at')::timestamp as order_created_at,
-        (_airbyte_data->>'updated_at')::timestamp as order_updated_at,
+        created_at::timestamp as order_created_at,
+        updated_at::timestamp as order_updated_at,
 
         -- Metadados Airbyte
-        _airbyte_extracted_at as _extracted_at,
-        current_timestamp      as _loaded_at
+        _airbyte_emitted_at as _extracted_at,
+        current_timestamp   as _loaded_at
 
     from source
 
