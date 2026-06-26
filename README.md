@@ -1,8 +1,18 @@
-# 🏗️ Lab 01 — Data Engineering Stack
+# 🏗️ Lab 01
 
 Stack completa de engenharia de dados rodando localmente com Docker Compose.
 
 ## Arquitetura
+
+![Diagrama da Arquitetura](img/arquitetura.png)
+
+O ambiente é composto por:
+- **MongoDB** (fonte de dados brutos) com TLS e Replica Set.
+- **Airbyte** (ingestão) extraindo do MongoDB e carregando no PostgreSQL.
+- **PostgreSQL** (data warehouse) com schemas `stg`, `curated` e `dagster`.
+- **Dagster** (orquestrador) acionando jobs do Airbyte e rodando transformações dbt.
+- **dbt** (transformação) modelando dados de staging para tabelas curadas.
+- **Gerador de dados** (Python) para popular o MongoDB com dados de exemplo.
 
 ```
 MongoDB (source)
