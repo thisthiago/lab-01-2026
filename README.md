@@ -34,11 +34,26 @@ MongoDB (source)
 ```bash
 # Clonar/entrar no diretório
 cd lab-01-2026
+```
 
-# Subir tudo (pode demorar ~5 min no primeiro boot)
-docker compose up -d
+### 1.2 Iniciar os Serviços
 
-# Acompanhar logs
+Como o MongoDB do Airbyte exige configurações de segurança avançadas (TLS), criamos scripts que automatizam a geração de certificados e aplicação de patch no conector antes de subir os serviços.
+
+**Se estiver no Windows (PowerShell):**
+```powershell
+.\setup.ps1
+```
+
+**Se estiver no Linux/macOS:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### 1.3 Acompanhar logs
+
+```bash
 docker compose logs -f
 ```
 
@@ -65,14 +80,13 @@ Abrir http://localhost:8000 (usuário: `airbyte`, senha: `password`)
 1. Ir em **Sources** → **New source**
 2. Buscar por **MongoDB V2**
 3. Preencher:
-   - **Source name:** `MongoDB Local`
-   - **Connection Scheme:** `mongodb`
-   - **Host:** `mongodb`  ← (nome do container na rede Docker)
-   - **Port:** `27017`
-   - **Database:** `source_db`
+   - **Cluster Type:** Selecione `Self-Managed Replica Set`
+   - **Connection String:** `mongodb://mongodb:27017/` (Sem credenciais aqui)
+     > ⚠️ O conector *MongoDB V2* exige TLS. O ambiente foi modificado com um certificado autoassinado (injetado na JVM do conector e no MongoDB) para suportar isso de forma transparente.
+   - **Database Name:** `source_db`
    - **Username:** `mongo_user`
    - **Password:** `mongo_password123`
-   - **Auth Source:** `admin`
+   - **Authentication Source:** `admin`
 4. Clicar em **Test and save**
 
 ### 2.3 Criar o Destination (PostgreSQL)
