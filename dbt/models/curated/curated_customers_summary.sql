@@ -40,7 +40,7 @@ final as (
         c.customer_id,
         c.customer_name,
         c.customer_email,
-        c.customer_phone,
+        c.phone,
         c.segment,
         c.customer_created_at,
 
