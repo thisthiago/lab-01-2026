@@ -42,7 +42,7 @@ def get_airbyte_resource() -> AirbyteResource:
 # =============================================================
 AIRBYTE_CONNECTION_ID = os.getenv(
     "AIRBYTE_CONNECTION_ID",
-    "00000000-0000-0000-0000-000000000000",  # substituir após criar no UI
+    "bbae0125-801f-461e-9fde-7fd9bbfa8244",  # substituir após criar no UI
 )
 
 
@@ -88,5 +88,5 @@ def mongodb_to_postgres_stg(
     )
 
     context.log.info(
-        f"✅ Sync concluído | status={outcome.run_details}"
+        f"✅ Sync concluído | status={outcome.job_details}"
     )
